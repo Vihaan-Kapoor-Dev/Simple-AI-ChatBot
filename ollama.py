@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from langchain_ollama import ChatOllama, ChatOllamaEmbeddings
+from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
@@ -18,9 +18,9 @@ load_dotenv()
 
 # Feel Free to change the placeholders with your choice of model
 
-model = ChatOpenAI(model="YOUR_MODEL_NAME", temperature=0.2)
+model = ollama.chat(model='llama3.2')
 
-embeddings = OpenAIEmbeddings(model="YOUR_EMBEDDING_NAME")
+embeddings = OllamaEmbeddings(model="nomic-embed-text")
 
 # MAKEING HTE RAG YEAAAH
 
