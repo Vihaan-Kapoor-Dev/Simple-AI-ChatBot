@@ -163,8 +163,9 @@ while True:
     print("AI-CHATBOT: ", end="", flush=True)
     
     # The response
-  
-    response = conversationalRAGchain.invoke({"input": userinput}, config=config)
+    #had to add a diff roponse thingy
+    
+    response = conversationalRAGagent.invoke({"input": userinput}, config=config)
 
   
     print(response["answer"], "\n")
