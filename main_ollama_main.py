@@ -18,7 +18,8 @@ load_dotenv()
 
 # Feel Free to change the placeholders with your choice of model
 
-model = ollama.chat(model='llama3.2')
+model = ChatOllama(model='llama3.2')
+
 
 embeddings = OllamaEmbeddings(model="nomic-embed-text")
 
