@@ -9,16 +9,21 @@ from langchain_core.chat_history import InMemoryChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
-
+from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_community.tools import DuckDuckGoSearchRun
 # This is it loading.
 
 
 load_dotenv()
 
+tools = [web_search_tool]
 
 # Feel Free to change the placeholders with your choice of model
 
 model = ChatOpenAI(model="YOUR_MODEL_NAME", temperature=0.2)
+
+modelWithtools = llm.bind_tools(tools)
 
 embeddings = OpenAIEmbeddings(model="YOUR_EMBEDDING_NAME")
 
@@ -39,9 +44,16 @@ splits = textsplitter.split_documents(docs)
 vectordatastore = Chroma.from_documents(documents=splits, embedding=embeddings)
 
 retriever = vectordatastore.as_retriever(search_kwargs={"k": 3})
+#web search_tool
+@tool
+def search_local_documents(query: str) -> str:
+    docs = retriever.invoke(query)
+    return "\n\n".join([doc.page_content for doc in docs])
+
+web_search_tool = DuckDuckGoSearchRun()
+tools = [search_local_documents, web_search_tool]
 
 # Making sure it doesn't have A D1 crashout when you use he not Dan Smith
-
 systemprompt = (
     "In the chat history with the Client question "
     "Could use context in the chat history, "
@@ -82,7 +94,23 @@ questionToAnswerchain = create_stuff_documents_chain(model, Qaprompt)  # Fixed: 
 # makes the RAG
 
 historyawareretriever = create_history_aware_retriever(model, retriever, contextualizeQprompt)
+#Sorry AGAIN had to use AI to make sure it would understand
+agentPrompt = ChatPromptTemplate.from_messages([
+    (
+        "system", 
+        "You are a helpful assistant equipped with tools. "
+        "You have access to local documents via 'search_local_documents' and the live internet via 'duckduckgo_search'. "
+        "Always check your local documents first. If the information isn't there, use the web search tool to find live, accurate information. "
+        "If you don't know the answer and tools fail, say that you don't know."
+    ),
+    MessagesPlaceholder(variable_name="chat_history"),
+    ("human", "{input}"),
+    MessagesPlaceholder(variable_name="agent_scratchpad"), # CRITICAL: Required for tool calling state tracking
+])
 
+# make the calling tool
+agent = create_tool_calling_agent(model, tools, agent_prompt)
+agentExecutor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
 RAGchain = create_retrieval_chain(historyawareretriever, questionToAnswerchain)
 
@@ -103,6 +131,7 @@ def getsessionhistory(session_id: str) -> InMemoryChatMessageHistory:
 
 
 conversationalRAGchain = RunnableWithMessageHistory(
+    agentExecutor,
     RAGchain,
     getsessionhistory,
     input_messages_key="input",        
